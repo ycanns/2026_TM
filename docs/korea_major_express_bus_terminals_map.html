@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>대한민국 주요 고속버스 터미널 지도</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 18px 24px 16px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+      color: #fff;
+    }
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      margin: 0;
+      color: #dbeafe;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      height: calc(100vh - 92px);
+      min-height: 680px;
+    }
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      overflow: auto;
+      padding: 18px;
+    }
+    .mapwrap {
+      position: relative;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .metric {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .metric .label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .metric .value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    label {
+      display: block;
+      margin: 10px 0 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    .button-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .primary {
+      background: var(--primary);
+      color: #fff;
+      flex: 1;
+    }
+    .secondary {
+      background: #e2e8f0;
+      color: #0f172a;
+      flex: 1;
+    }
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 10px;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(15,23,42,.18);
+    }
+    .table-wrap {
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    thead {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      z-index: 1;
+    }
+    th, td {
+      padding: 9px 8px;
+      text-align: left;
+      border-bottom: 1px solid #edf2f7;
+      vertical-align: top;
+    }
+    th {
+      color: #334155;
+      font-weight: 800;
+    }
+    tr:hover {
+      background: #eff6ff;
+      cursor: pointer;
+    }
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .source-list {
+      margin: 8px 0 0;
+      padding-left: 17px;
+    }
+    .source-list li {
+      margin: 4px 0;
+    }
+    .source-list a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .custom-marker {
+      background: transparent;
+      border: none;
+    }
+    .pin {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      border: 2px solid #fff;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+    }
+    .popup-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
+    .popup-row {
+      margin: 3px 0;
+      line-height: 1.35;
+    }
+    .popup-key {
+      color: #64748b;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .map-note {
+      position: absolute;
+      z-index: 500;
+      right: 14px;
+      bottom: 22px;
+      background: rgba(255,255,255,0.96);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12px;
+      max-width: 360px;
+      line-height: 1.45;
+    }
+    @media (max-width: 900px) {
+      .layout {
+        display: block;
+        height: auto;
+      }
+      .sidebar {
+        height: auto;
+        max-height: none;
+      }
+      .mapwrap {
+        height: 70vh;
+      }
+      .map-note {
+        left: 12px;
+        right: 12px;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>대한민국 주요 고속버스 터미널 지도</h1>
+  <p>권역별 대표 고속·시외 연계 터미널 58개소를 선별해 표시했습니다. 팝업에서 주소·유형·권역·운영 메모를 확인할 수 있습니다.</p>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="card">
+      <strong>요약 대시보드</strong>
+      <div class="metric-grid">
+        <div class="metric"><div class="label">표시 터미널</div><div class="value" id="countShown">58</div></div>
+        <div class="metric"><div class="label">전체 터미널</div><div class="value">58</div></div>
+        <div class="metric"><div class="label">권역</div><div class="value">6</div></div>
+        <div class="metric"><div class="label">자료 기준일</div><div class="value" style="font-size:15px;">2026.05.12</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <strong>검색 및 필터</strong>
+      <label for="searchInput">터미널명·주소 검색</label>
+      <input id="searchInput" type="text" placeholder="예: 서울, 강릉, 전주, 종합터미널" />
+      <label for="regionFilter">권역</label>
+      <select id="regionFilter"><option value="">전체 권역</option></select>
+      <label for="sidoFilter">시도</label>
+      <select id="sidoFilter"><option value="">전체 시도</option></select>
+      <label for="typeFilter">유형</label>
+      <select id="typeFilter"><option value="">전체 유형</option></select>
+      <div class="button-row">
+        <button class="primary" id="fitBtn">현재 결과로 확대</button>
+        <button class="secondary" id="resetBtn">초기화</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <strong>권역 범례</strong>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="card">
+      <strong>터미널 목록</strong>
+      <p class="small" style="margin: 6px 0 10px;">목록 행을 클릭하면 해당 지점으로 이동합니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>터미널</th><th>시도</th><th>유형</th></tr>
+          </thead>
+          <tbody id="terminalTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <strong>자료 및 활용 메모</strong>
+      <p class="small">
+        본 지도는 전국 단위 현황 파악·강의/보고서용 시각화를 목적으로 한 대표 위치 데이터입니다.
+        실제 예매 가능 노선, 운행 시간, 임시 이전 여부는 수시로 변동될 수 있으므로 운영·예매 시스템에서 재확인해야 합니다.
+      </p>
+      <ul class="small source-list">
+        <li><a href="https://www.data.go.kr/data/15098522/openapi.do" target="_blank" rel="noreferrer">국토교통부 TAGO 고속버스정보</a></li>
+        <li><a href="https://transportation.asamaru.net/%EA%B3%A0%EC%86%8D%EB%B2%84%EC%8A%A4/%ED%84%B0%EB%AF%B8%EB%84%90/" target="_blank" rel="noreferrer">전국 고속버스 터미널 안내</a></li>
+        <li><a href="https://ciy545.tistory.com/294" target="_blank" rel="noreferrer">버스터미널 위경도 참고자료</a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <main class="mapwrap">
+    <div id="map"></div>
+    <div class="map-note">
+      <strong>주의:</strong> 지도 좌표는 터미널 건물 또는 승차장 대표점을 기준으로 정리했습니다.
+      터미널 현대화·임시 승차장 운영 등으로 세부 승차 위치가 바뀔 수 있습니다.
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+const terminals = [{"name": "서울고속버스터미널(경부·영동선)", "sido": "서울특별시", "region": "수도권", "type": "고속", "lat": 37.50568115, "lon": 127.00584613, "address": "서울특별시 서초구 신반포로 194", "note": "서울 경부·영동선 중심 고속버스 허브", "id": 1}, {"name": "센트럴시티터미널(호남선)", "sido": "서울특별시", "region": "수도권", "type": "고속", "lat": 37.5049178, "lon": 127.0032131, "address": "서울특별시 서초구 신반포로 190", "note": "서울 호남선 중심 고속버스 허브", "id": 2}, {"name": "동서울종합터미널", "sido": "서울특별시", "region": "수도권", "type": "종합", "lat": 37.5343935, "lon": 127.0940622, "address": "서울특별시 광진구 강변역로 50", "note": "강원·충청·영남권 연계 축", "id": 3}, {"name": "인천종합터미널", "sido": "인천광역시", "region": "수도권", "type": "종합", "lat": 37.4416995, "lon": 126.7015364, "address": "인천광역시 미추홀구 연남로 35", "note": "인천권 대표 고속·시외버스 허브", "id": 4}, {"name": "인천공항T1정류장", "sido": "인천광역시", "region": "수도권", "type": "공항 정류장", "lat": 37.4490912, "lon": 126.4518237, "address": "인천광역시 중구 공항로 272", "note": "공항 연계 장거리 버스 정류장", "id": 5}, {"name": "인천공항T2정류장", "sido": "인천광역시", "region": "수도권", "type": "공항 정류장", "lat": 37.4695652, "lon": 126.432803, "address": "인천광역시 중구 공항로 272", "note": "공항 연계 장거리 버스 정류장", "id": 6}, {"name": "수원버스터미널", "sido": "경기도", "region": "수도권", "type": "종합", "lat": 37.2513342, "lon": 127.01996, "address": "경기도 수원시 권선구 경수대로 270", "note": "경기 남부권 주요 허브", "id": 7}, {"name": "성남종합버스터미널", "sido": "경기도", "region": "수도권", "type": "종합", "lat": 37.4129663, "lon": 127.1273105, "address": "경기도 성남시 분당구 성남대로925번길 16", "note": "야탑역 인근 경기 동남부 허브", "id": 8}, {"name": "고양종합터미널", "sido": "경기도", "region": "수도권", "type": "종합", "lat": 37.6429781, "lon": 126.7898737, "address": "경기도 고양시 일산동구 중앙로 1036", "note": "경기 북서부권 주요 허브", "id": 9}, {"name": "안산종합여객자동차터미널", "sido": "경기도", "region": "수도권", "type": "종합", "lat": 37.3168355, "lon": 126.8462524, "address": "경기도 안산시 상록구 항가울로 410", "note": "서해안·수도권 남서부 거점", "id": 10}, {"name": "용인공용버스터미널", "sido": "경기도", "region": "수도권", "type": "종합", "lat": 37.2328707, "lon": 127.2096519, "address": "경기도 용인시 처인구 중부대로 1486", "note": "용인권 고속·시외 연계", "id": 11}, {"name": "평택고속버스터미널", "sido": "경기도", "region": "수도권", "type": "고속", "lat": 36.9910917, "lon": 127.086952, "address": "경기도 평택시 평택로39번길 40", "note": "경기 서남부 고속버스 거점", "id": 12}, {"name": "대전복합터미널", "sido": "대전광역시", "region": "충청권", "type": "종합", "lat": 36.3509078, "lon": 127.4370346, "address": "대전광역시 동구 동서대로 1689", "note": "중부권 최대급 종합버스터미널", "id": 13}, {"name": "세종고속시외버스터미널", "sido": "세종특별자치시", "region": "충청권", "type": "종합", "lat": 36.4698573, "lon": 127.2727929, "address": "세종특별자치시 대평동 일대", "note": "세종권 대표 고속·시외버스 허브", "id": 14}, {"name": "청주고속버스터미널", "sido": "충청북도", "region": "충청권", "type": "고속", "lat": 36.626749, "lon": 127.430988, "address": "충청북도 청주시 흥덕구 제2순환로 1225 일대", "note": "충북권 고속버스 대표 터미널", "id": 15}, {"name": "충주공용버스터미널", "sido": "충청북도", "region": "충청권", "type": "종합", "lat": 36.9816206, "lon": 127.9143215, "address": "충청북도 충주시 봉계1길 49", "note": "충북 북부권 장거리 버스 거점", "id": 16}, {"name": "제천고속버스터미널", "sido": "충청북도", "region": "충청권", "type": "고속", "lat": 37.142965, "lon": 128.2110228, "address": "충청북도 제천시 칠성로10길 12", "note": "충북 북동부 고속버스 거점", "id": 17}, {"name": "천안고속버스터미널", "sido": "충청남도", "region": "충청권", "type": "고속", "lat": 36.8192353, "lon": 127.1544212, "address": "충청남도 천안시 동남구 만남로 43", "note": "천안·아산 광역권 핵심 터미널", "id": 18}, {"name": "공주종합버스터미널", "sido": "충청남도", "region": "충청권", "type": "종합", "lat": 36.4684596, "lon": 127.1348625, "address": "충청남도 공주시 신관로 74", "note": "충남 내륙권 거점", "id": 19}, {"name": "아산온양고속버스터미널", "sido": "충청남도", "region": "충청권", "type": "고속", "lat": 36.7844835, "lon": 127.0152835, "address": "충청남도 아산시 번영로 223", "note": "아산·온양권 고속버스 거점", "id": 20}, {"name": "논산고속버스터미널", "sido": "충청남도", "region": "충청권", "type": "고속", "lat": 36.2021335, "lon": 127.0854536, "address": "충청남도 논산시 계백로 973", "note": "충남 남부권 고속버스 거점", "id": 21}, {"name": "당진버스터미널", "sido": "충청남도", "region": "충청권", "type": "종합", "lat": 36.9025861, "lon": 126.6458707, "address": "충청남도 당진시 밤절로 149", "note": "충남 서북부·산업권 거점", "id": 22}, {"name": "보령종합터미널", "sido": "충청남도", "region": "충청권", "type": "종합", "lat": 36.3426948, "lon": 126.5900497, "address": "충청남도 보령시 터미널길 8", "note": "서해안 관광·물류 연계 거점", "id": 23}, {"name": "서산공용버스터미널", "sido": "충청남도", "region": "충청권", "type": "종합", "lat": 36.7817439, "lon": 126.4583996, "address": "충청남도 서산시 안견로 190", "note": "충남 서산권 장거리 버스 거점", "id": 24}, {"name": "강릉고속버스터미널", "sido": "강원특별자치도", "region": "강원권", "type": "고속", "lat": 37.7545149, "lon": 128.8796152, "address": "강원특별자치도 강릉시 하슬라로 15", "note": "영동권 고속버스 대표 거점", "id": 25}, {"name": "동해시종합버스터미널", "sido": "강원특별자치도", "region": "강원권", "type": "종합", "lat": 37.52769453, "lon": 129.1040173, "address": "강원특별자치도 동해시 동해대로 5443", "note": "동해권 고속·시외 연계 터미널", "id": 26}, {"name": "삼척고속버스터미널", "sido": "강원특별자치도", "region": "강원권", "type": "고속", "lat": 37.4403067, "lon": 129.1680538, "address": "강원특별자치도 삼척시 중앙로 192", "note": "강원 남동부 고속버스 거점", "id": 27}, {"name": "속초고속버스터미널", "sido": "강원특별자치도", "region": "강원권", "type": "고속", "lat": 38.19046, "lon": 128.598713, "address": "강원특별자치도 속초시 동해대로 3988", "note": "설악·동해안 관광권 고속버스 거점", "id": 28}, {"name": "원주고속버스터미널", "sido": "강원특별자치도", "region": "강원권", "type": "고속", "lat": 37.3443477, "lon": 127.9320685, "address": "강원특별자치도 원주시 서원대로 181", "note": "강원 영서권 대표 고속버스 거점", "id": 29}, {"name": "춘천고속버스터미널", "sido": "강원특별자치도", "region": "강원권", "type": "고속", "lat": 37.8646841, "lon": 127.7175222, "address": "강원특별자치도 춘천시 터미널길14번길 15", "note": "강원 북부·수도권 연계 거점", "id": 30}, {"name": "동대구터미널", "sido": "대구광역시", "region": "대경권", "type": "종합", "lat": 35.87794919, "lon": 128.62966937, "address": "대구광역시 동구 동부로 149", "note": "대구·경북권 복합환승 핵심 허브", "id": 31}, {"name": "서대구고속버스터미널", "sido": "대구광역시", "region": "대경권", "type": "고속", "lat": 35.89024, "lon": 128.561412, "address": "대구광역시 북구 팔달로 103", "note": "대구 서북부 고속버스 거점", "id": 32}, {"name": "경주고속터미널", "sido": "경상북도", "region": "대경권", "type": "고속", "lat": 35.838677, "lon": 129.2034999, "address": "경상북도 경주시 태종로685번길 2", "note": "경주 관광권 고속버스 거점", "id": 33}, {"name": "구미종합터미널", "sido": "경상북도", "region": "대경권", "type": "종합", "lat": 36.1226857, "lon": 128.3521052, "address": "경상북도 구미시 송원동로 72", "note": "경북 서부 산업권 거점", "id": 34}, {"name": "안동터미널", "sido": "경상북도", "region": "대경권", "type": "종합", "lat": 36.5745745, "lon": 128.6759877, "address": "경상북도 안동시 경동로 130", "note": "경북 북부권 대표 터미널", "id": 35}, {"name": "영주종합터미널", "sido": "경상북도", "region": "대경권", "type": "종합", "lat": 36.8270798, "lon": 128.6057812, "address": "경상북도 영주시 대학로 352", "note": "경북 북부 내륙권 거점", "id": 36}, {"name": "상주종합버스터미널", "sido": "경상북도", "region": "대경권", "type": "종합", "lat": 36.4188381, "lon": 128.1517916, "address": "경상북도 상주시 삼백로 71", "note": "경북 서북부 내륙권 거점", "id": 37}, {"name": "포항고속버스터미널", "sido": "경상북도", "region": "대경권", "type": "고속", "lat": 36.0280159, "lon": 129.3675997, "address": "경상북도 포항시 남구 중앙로 166", "note": "동해안·경북 동부권 고속버스 거점", "id": 38}, {"name": "부산종합버스터미널", "sido": "부산광역시", "region": "동남권", "type": "종합", "lat": 35.2847572, "lon": 129.0954463, "address": "부산광역시 금정구 중앙대로 2238", "note": "부산 동부·노포권 장거리 버스 허브", "id": 39}, {"name": "부산서부사상버스터미널", "sido": "부산광역시", "region": "동남권", "type": "종합", "lat": 35.163307, "lon": 128.9823, "address": "부산광역시 사상구 사상로 201", "note": "부산 서부·경남권 연계 허브", "id": 40}, {"name": "울산고속버스터미널", "sido": "울산광역시", "region": "동남권", "type": "고속", "lat": 35.5374868, "lon": 129.3391238, "address": "울산광역시 남구 삼산로 288", "note": "울산 도심 고속버스 거점", "id": 41}, {"name": "울산신복정류소", "sido": "울산광역시", "region": "동남권", "type": "정류소", "lat": 35.551028, "lon": 129.2627662, "address": "울산광역시 남구 북부순환도로1번길 1-1 일대", "note": "울산권 고속·시외 환승 정류소", "id": 42}, {"name": "창원종합버스터미널", "sido": "경상남도", "region": "동남권", "type": "종합", "lat": 35.2362755, "lon": 128.6393545, "address": "경상남도 창원시 의창구 창원대로 371", "note": "경남 중부권 대표 종합터미널", "id": 43}, {"name": "마산고속버스터미널", "sido": "경상남도", "region": "동남권", "type": "고속", "lat": 35.223018, "lon": 128.5879, "address": "경상남도 창원시 마산회원구 합포로 290", "note": "창원 마산권 고속버스 거점", "id": 44}, {"name": "진주고속버스터미널", "sido": "경상남도", "region": "동남권", "type": "고속", "lat": 35.1786448, "lon": 128.0930178, "address": "경상남도 진주시 동진로 16", "note": "서부경남 고속버스 거점", "id": 45}, {"name": "김해여객터미널", "sido": "경상남도", "region": "동남권", "type": "종합", "lat": 35.22782378, "lon": 128.87342366, "address": "경상남도 김해시 김해대로 2232", "note": "김해권 장거리 버스 거점", "id": 46}, {"name": "통영종합버스터미널", "sido": "경상남도", "region": "동남권", "type": "종합", "lat": 34.8850738, "lon": 128.4169264, "address": "경상남도 통영시 광도면 죽림4로 24", "note": "남해안 관광권 장거리 버스 거점", "id": 47}, {"name": "광주종합버스터미널(유·스퀘어)", "sido": "광주광역시", "region": "호남권", "type": "종합", "lat": 35.1601666, "lon": 126.8793224, "address": "광주광역시 서구 무진대로 932", "note": "호남권 최대급 종합버스터미널", "id": 48}, {"name": "전주고속버스터미널", "sido": "전북특별자치도", "region": "호남권", "type": "고속", "lat": 35.8346168, "lon": 127.1291145, "address": "전북특별자치도 전주시 덕진구 전주천동로 469", "note": "전북권 고속버스 대표 터미널", "id": 49}, {"name": "익산고속버스터미널", "sido": "전북특별자치도", "region": "호남권", "type": "고속", "lat": 35.9315245, "lon": 126.9440075, "address": "전북특별자치도 익산시 익산대로 56", "note": "익산권 고속버스 거점", "id": 50}, {"name": "군산고속버스터미널", "sido": "전북특별자치도", "region": "호남권", "type": "고속", "lat": 35.978206, "lon": 126.7244326, "address": "전북특별자치도 군산시 해망로 30", "note": "전북 서해안권 고속버스 거점", "id": 51}, {"name": "남원고속버스터미널", "sido": "전북특별자치도", "region": "호남권", "type": "고속", "lat": 35.4216371, "lon": 127.3942772, "address": "전북특별자치도 남원시 춘향로 78", "note": "전북 동남부·지리산권 거점", "id": 52}, {"name": "목포종합버스터미널", "sido": "전라남도", "region": "호남권", "type": "종합", "lat": 34.8127667, "lon": 126.417875, "address": "전라남도 목포시 영산로 525", "note": "전남 서남권 장거리 버스 허브", "id": 53}, {"name": "순천종합버스터미널", "sido": "전라남도", "region": "호남권", "type": "종합", "lat": 34.9475834, "lon": 127.4914335, "address": "전라남도 순천시 장천3길 13", "note": "전남 동부권 장거리 버스 허브", "id": 54}, {"name": "여수종합버스터미널", "sido": "전라남도", "region": "호남권", "type": "종합", "lat": 34.7581534, "lon": 127.7169514, "address": "전라남도 여수시 좌수영로 268", "note": "여수 관광·산업권 장거리 버스 거점", "id": 55}, {"name": "광양터미널", "sido": "전라남도", "region": "호남권", "type": "종합", "lat": 34.9695568, "lon": 127.589922, "address": "전라남도 광양시 광양읍 순광로 688 일대", "note": "광양권 장거리 버스 거점", "id": 56}, {"name": "해남종합버스터미널", "sido": "전라남도", "region": "호남권", "type": "종합", "lat": 34.5706917, "lon": 126.6079625, "address": "전라남도 해남군 해남읍 해남로 8", "note": "전남 서남부·땅끝권 연계 거점", "id": 57}, {"name": "완도공용버스터미널", "sido": "전라남도", "region": "호남권", "type": "종합", "lat": 34.3185213, "lon": 126.7449781, "address": "전라남도 완도군 완도읍 개포로130번길 20", "note": "완도·도서권 연계 장거리 버스 거점", "id": 58}];
+
+const regionColors = {
+  "수도권": "#2563eb",
+  "충청권": "#16a34a",
+  "강원권": "#0891b2",
+  "대경권": "#ea580c",
+  "동남권": "#7c3aed",
+  "호남권": "#dc2626"
+};
+
+const map = L.map('map', {
+  center: [36.4, 127.8],
+  zoom: 7,
+  minZoom: 6
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const cluster = L.markerClusterGroup({
+  showCoverageOnHover: false,
+  spiderfyOnMaxZoom: true,
+  maxClusterRadius: 45
+});
+map.addLayer(cluster);
+
+let markerIndex = new Map();
+let currentMarkers = [];
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+function markerIcon(t) {
+  const color = regionColors[t.region] || '#334155';
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div class="pin" style="background:${color}">${t.id}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -12]
+  });
+}
+
+function popupHtml(t) {
+  const naverQuery = encodeURIComponent(`${t.name} ${t.address}`);
+  const kakaoQuery = encodeURIComponent(`${t.name}`);
+  return `
+    <div class="popup-title">${escapeHtml(t.name)}</div>
+    <div class="popup-row"><span class="badge">${escapeHtml(t.region)}</span> <span class="badge">${escapeHtml(t.type)}</span></div>
+    <div class="popup-row"><span class="popup-key">시도</span>${escapeHtml(t.sido)}</div>
+    <div class="popup-row"><span class="popup-key">주소</span>${escapeHtml(t.address)}</div>
+    <div class="popup-row"><span class="popup-key">좌표</span>${Number(t.lat).toFixed(6)}, ${Number(t.lon).toFixed(6)}</div>
+    <div class="popup-row"><span class="popup-key">메모</span>${escapeHtml(t.note)}</div>
+    <div class="popup-row" style="margin-top:8px;">
+      <a href="https://map.naver.com/p/search/${naverQuery}" target="_blank" rel="noreferrer">네이버지도 검색</a>
+      · <a href="https://map.kakao.com/?q=${kakaoQuery}" target="_blank" rel="noreferrer">카카오맵 검색</a>
+      · <a href="https://www.kobus.co.kr" target="_blank" rel="noreferrer">KOBUS</a>
+    </div>
+  `;
+}
+
+function createMarker(t) {
+  const marker = L.marker([t.lat, t.lon], { icon: markerIcon(t), title: t.name });
+  marker.bindPopup(popupHtml(t), { maxWidth: 340 });
+  marker.__terminal = t;
+  markerIndex.set(t.id, marker);
+  return marker;
+}
+
+function uniqueSorted(values) {
+  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+function populateFilters() {
+  const regionSel = document.getElementById('regionFilter');
+  const sidoSel = document.getElementById('sidoFilter');
+  const typeSel = document.getElementById('typeFilter');
+
+  uniqueSorted(terminals.map(t => t.region)).forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v; regionSel.appendChild(opt);
+  });
+  uniqueSorted(terminals.map(t => t.sido)).forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v; sidoSel.appendChild(opt);
+  });
+  uniqueSorted(terminals.map(t => t.type)).forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v; typeSel.appendChild(opt);
+  });
+
+  const legend = document.getElementById('legend');
+  Object.entries(regionColors).forEach(([region, color]) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<span class="dot" style="background:${color}"></span><span>${region}</span>`;
+    legend.appendChild(item);
+  });
+}
+
+function getFiltered() {
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  const region = document.getElementById('regionFilter').value;
+  const sido = document.getElementById('sidoFilter').value;
+  const type = document.getElementById('typeFilter').value;
+
+  return terminals.filter(t => {
+    const text = `${t.name} ${t.sido} ${t.address} ${t.type} ${t.note}`.toLowerCase();
+    return (!query || text.includes(query)) &&
+           (!region || t.region === region) &&
+           (!sido || t.sido === sido) &&
+           (!type || t.type === type);
+  });
+}
+
+function render() {
+  const filtered = getFiltered();
+  cluster.clearLayers();
+  currentMarkers = [];
+  markerIndex = new Map();
+
+  const tbody = document.getElementById('terminalTable');
+  tbody.innerHTML = '';
+
+  filtered.forEach(t => {
+    const marker = createMarker(t);
+    cluster.addLayer(marker);
+    currentMarkers.push(marker);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${t.id}</td>
+      <td><strong>${escapeHtml(t.name)}</strong><br><span class="small">${escapeHtml(t.address)}</span></td>
+      <td>${escapeHtml(t.sido)}</td>
+      <td>${escapeHtml(t.type)}</td>
+    `;
+    tr.addEventListener('click', () => {
+      map.setView([t.lat, t.lon], 14, { animate: true });
+      marker.openPopup();
+    });
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('countShown').textContent = filtered.length;
+}
+
+function fitCurrent() {
+  if (!currentMarkers.length) return;
+  const group = L.featureGroup(currentMarkers);
+  map.fitBounds(group.getBounds().pad(0.12));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  populateFilters();
+  ['searchInput','regionFilter','sidoFilter','typeFilter'].forEach(id => {
+    document.getElementById(id).addEventListener('input', render);
+    document.getElementById(id).addEventListener('change', render);
+  });
+  document.getElementById('fitBtn').addEventListener('click', fitCurrent);
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('regionFilter').value = '';
+    document.getElementById('sidoFilter').value = '';
+    document.getElementById('typeFilter').value = '';
+    render();
+    map.setView([36.4, 127.8], 7);
+  });
+  render();
+  fitCurrent();
+});
+</script>
+</body>
+</html>
