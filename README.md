@@ -1,9 +1,4 @@
-# 2026_TM
-
-2026 Territorial Monitoring
-
-## GitHub Pages Direct Link Index
-
+# 2026 Territorial Monitoring
 This repository provides direct access to 102 interactive HTML pages published through GitHub Pages. Each link below resolves to the deployed page under `https://ycanns.github.io/2026_TM/`.
 
 ### 공항
